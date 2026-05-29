@@ -69,10 +69,17 @@ init_db()
 # ADMINS
 # =====================================
 
-ADMINS = {
-    "admin":"admin",
-    "onesime":"1234"
+USERS = {
+"admin": {
+"password": "admin",
+"role": "admin"
+},
+"onesime": {
+"password": "1234",
+"role": "user"
 }
+}
+
 
 # =====================================
 # LOGIN
@@ -81,304 +88,311 @@ ADMINS = {
 @app.route("/", methods=["GET","POST"])
 def login():
 
-    if request.method == "POST":
+ if request.method == "POST":
 
-        user = request.form.get("user")
-        password = request.form.get("pass")
+    user = request.form.get("user")
+    password = request.form.get("pass")
 
-        if user in ADMINS and ADMINS[user] == password:
+    if user in USERS and USERS[user]["password"] == password:
 
-            session["admin"] = user
+        session["user"] = user
+        session["role"] = USERS[user]["role"]
 
-            return redirect("/dashboard")
+        return redirect("/dashboard")
 
-        return "<h1>Login incorrect</h1>"
+    return "<h1>Login incorrect</h1>"
 
-    return """
+ return """
 
-    <body style='margin:0;
-    background:#0f172a;
-    font-family:Arial;
-    color:white;'>
+<body style='margin:0;
+background:#0f172a;
+font-family:Arial;
+color:white;'>
 
-    <div style='max-width:350px;
-    margin:auto;
-    margin-top:120px;
-    background:#1e293b;
-    padding:30px;
-    border-radius:20px;'>
+<div style='max-width:350px;
+margin:auto;
+margin-top:120px;
+background:#1e293b;
+padding:30px;
+border-radius:20px;'>
 
-    <h1 style='text-align:center;'>
-    💰 Tontine Pro
-    </h1>
+<h1 style='text-align:center;'>
+💰 Tontine Pro
+</h1>
 
-    <form method='POST'>
+<form method='POST'>
 
-    <input name='user'
-    placeholder='Utilisateur'
+<input name='user'
+placeholder='Utilisateur'
 
-    style='width:100%;
-    padding:12px;
-    margin-top:10px;
-    border:none;
-    border-radius:10px;'>
+style='width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+border-radius:10px;'>
 
-    <input type='password'
-    name='pass'
-    placeholder='Mot de passe'
+<input type='password'
+name='pass'
+placeholder='Mot de passe'
 
-    style='width:100%;
-    padding:12px;
-    margin-top:10px;
-    border:none;
-    border-radius:10px;'>
+style='width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+border-radius:10px;'>
 
-    <button type='submit'
+<button type='submit'
 
-    style='width:100%;
-    padding:12px;
-    margin-top:15px;
-    background:#2563eb;
-    color:white;
-    border:none;
-    border-radius:10px;'>
+style='width:100%;
+padding:12px;
+margin-top:15px;
+background:#2563eb;
+color:white;
+border:none;
+border-radius:10px;'>
 
-    Login
+Login
 
-    </button>
+</button>
 
-    </form>
+</form>
 
-    </div>
+</div>
 
-    </body>
+</body>
 
-    """
+"""
+=====================================
 
-# =====================================
-# DASHBOARD
-# =====================================
+DASHBOARD
+
+=====================================
 
 @app.route("/dashboard")
 def dashboard():
 
-    if "admin" not in session:
-        return redirect("/")
+if "user" not in session:
+    return redirect("/")
 
-    mode = request.args.get("mode","dark")
+mode = request.args.get("mode","dark")
 
-    if mode == "light":
+if mode == "light":
 
-        bg = "#f1f5f9"
-        card = "white"
-        text = "black"
+    bg = "#f1f5f9"
+    card = "white"
+    text = "black"
+
+else:
+
+    bg = "#0f172a"
+    card = "#1e293b"
+    text = "white"
+
+q = request.args.get("q","").lower()
+
+filtre = request.args.get("filtre","all")
+
+conn = sqlite3.connect(DB)
+c = conn.cursor()
+
+c.execute("SELECT * FROM membres")
+
+membres = c.fetchall()
+
+c.execute("SELECT * FROM historique ORDER BY id DESC")
+
+historiques = c.fetchall()
+
+conn.close()
+
+payes = 0
+non_payes = 0
+total = 0
+
+page = f"""
+
+<body style='margin:0;
+background:{bg};
+color:{text};
+font-family:Arial;'>
+
+<div style='padding:15px;'>
+
+<h1>💰 Dashboard Tontine</h1>
+
+<form method='GET'
+
+style='display:flex;
+gap:10px;
+flex-wrap:wrap;'>
+
+<input type='hidden'
+name='mode'
+value='{mode}'>
+
+<input name='q'
+value='{q}'
+placeholder='Recherche membre...'
+
+style='flex:1;
+padding:10px;
+border-radius:10px;
+border:none;'>
+
+<select name='filtre'
+
+style='padding:10px;
+border-radius:10px;'>
+
+<option value='all'>Tous</option>
+<option value='paye'>Payés</option>
+<option value='non'>Non payés</option>
+
+</select>
+
+<button type='submit'
+
+style='background:#2563eb;
+color:white;
+border:none;
+padding:10px;
+border-radius:10px;'>
+
+OK
+
+</button>
+
+</form>
+
+<br>
+
+<a href='/dashboard?mode=dark'
+style='background:black;
+color:white;
+padding:10px;
+border-radius:10px;
+text-decoration:none;'>
+
+🌙 Dark
+
+</a>
+
+<a href='/dashboard?mode=light'
+style='background:white;
+color:black;
+padding:10px;
+border-radius:10px;
+text-decoration:none;'>
+
+☀️ Light
+
+</a>
+
+<br><br>
+
+<div style='overflow:auto;'>
+
+<table border='1'
+width='100%'
+
+style='border-collapse:collapse;
+background:{card};'>
+
+<tr>
+
+<th>Nom</th>
+<th>Statut</th>
+<th>Montant</th>
+<th>Date</th>
+<th>Action</th>
+<th>Supprimer</th>
+
+</tr>
+
+"""
+
+for m in membres:
+
+    id, nom, paye, montant, date = m
+
+    if q and q not in nom.lower():
+        continue
+
+    if filtre == "paye" and paye == 0:
+        continue
+
+    if filtre == "non" and paye == 1:
+        continue
+
+    if paye == 1:
+
+        statut = "A payé"
+        color = "lightgreen"
+
+        payes += 1
 
     else:
 
-        bg = "#0f172a"
-        card = "#1e293b"
-        text = "white"
+        statut = "Non payé"
+        color = "red"
 
-    q = request.args.get("q","").lower()
+        non_payes += 1
 
-    filtre = request.args.get("filtre","all")
+    total += montant
 
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-
-    c.execute("SELECT * FROM membres")
-
-    membres = c.fetchall()
-
-    c.execute("SELECT * FROM historique ORDER BY id DESC")
-
-    historiques = c.fetchall()
-
-    conn.close()
-
-    payes = 0
-    non_payes = 0
-    total = 0
-
-    page = f"""
-
-    <body style='margin:0;
-    background:{bg};
-    color:{text};
-    font-family:Arial;'>
-
-    <div style='padding:15px;'>
-
-    <h1>💰 Dashboard Tontine</h1>
-
-    <form method='GET'
-
-    style='display:flex;
-    gap:10px;
-    flex-wrap:wrap;'>
-
-    <input type='hidden'
-    name='mode'
-    value='{mode}'>
-
-    <input name='q'
-    value='{q}'
-    placeholder='Recherche membre...'
-
-    style='flex:1;
-    padding:10px;
-    border-radius:10px;
-    border:none;'>
-
-    <select name='filtre'
-
-    style='padding:10px;
-    border-radius:10px;'>
-
-    <option value='all'>Tous</option>
-    <option value='paye'>Payés</option>
-    <option value='non'>Non payés</option>
-
-    </select>
-
-    <button type='submit'
-
-    style='background:#2563eb;
-    color:white;
-    border:none;
-    padding:10px;
-    border-radius:10px;'>
-
-    OK
-
-    </button>
-
-    </form>
-
-    <br>
-
-    <a href='/dashboard?mode=dark'
-    style='background:black;
-    color:white;
-    padding:10px;
-    border-radius:10px;
-    text-decoration:none;'>
-
-    🌙 Dark
-
-    </a>
-
-    <a href='/dashboard?mode=light'
-    style='background:white;
-    color:black;
-    padding:10px;
-    border-radius:10px;
-    text-decoration:none;'>
-
-    ☀️ Light
-
-    </a>
-
-    <br><br>
-
-    <div style='overflow:auto;'>
-
-    <table border='1'
-    width='100%'
-
-    style='border-collapse:collapse;
-    background:{card};'>
+    page += f"""
 
     <tr>
 
-    <th>Nom</th>
-    <th>Statut</th>
-    <th>Montant</th>
-    <th>Date</th>
-    <th>Action</th>
-    <th>Supprimer</th>
+    <td>{nom}</td>
 
-    </tr>
+    <td style='color:{color};
+    font-weight:bold;'>
+
+    {statut}
+
+    </td>
+
+    <td>{montant}$</td>
+
+    <td>{date}</td>
+
+    <td>
 
     """
 
-    for m in membres:
-
-        id, nom, paye, montant, date = m
-
-        if q and q not in nom.lower():
-            continue
-
-        if filtre == "paye" and paye == 0:
-            continue
-
-        if filtre == "non" and paye == 1:
-            continue
-
-        if paye == 1:
-
-            statut = "A payé"
-            color = "lightgreen"
-
-            payes += 1
-
-        else:
-
-            statut = "Non payé"
-            color = "red"
-
-            non_payes += 1
-
-        total += montant
+    if paye == 0:
 
         page += f"""
 
-        <tr>
+        <a href='/payer/{nom}'
 
-        <td>{nom}</td>
+        style='background:green;
+        color:white;
+        padding:6px;
+        border-radius:6px;
+        text-decoration:none;'>
 
-        <td style='color:{color};
-        font-weight:bold;'>
+        💰 Payer
 
-        {statut}
-
-        </td>
-
-        <td>{montant}$</td>
-
-        <td>{date}</td>
-
-        <td>
+        </a>
 
         """
 
-        if paye == 0:
+    else:
 
-            page += f"""
+        page += "✅"
 
-            <a href='/payer/{nom}'
+    page += f"""
 
-            style='background:green;
-            color:white;
-            padding:6px;
-            border-radius:6px;
-            text-decoration:none;'>
+    </td>
 
-            💰 Payer
+    <td>
+    """
 
-            </a>
-
-            """
-
-        else:
-
-            page += "✅"
+    if session.get("role") == "admin":
 
         page += f"""
-
-        </td>
-
-        <td>
 
         <a href='/supprimer/{nom}'
 
@@ -392,172 +406,86 @@ def dashboard():
 
         </a>
 
-        </td>
-
-        </tr>
-
         """
 
-    total_membres = payes + non_payes
+    page += """
 
-    if total_membres > 0:
+    </td>
 
-        progression = round((payes / total_membres) * 100,1)
-
-    else:
-
-        progression = 0
-
-    page += f"""
-
-    </table>
-
-    </div>
-
-    <br>
-
-    <div style='display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:15px;'>
-
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
-
-    <h3>Total collecté</h3>
-
-    <h1>{total}$</h1>
-
-    </div>
-
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
-
-    <h3>Payés</h3>
-
-    <h1>{payes}</h1>
-
-    </div>
-
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
-
-    <h3>Non payés</h3>
-
-    <h1>{non_payes}</h1>
-
-    </div>
-
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
-
-    <h3>Progression</h3>
-
-    <h1>{progression}%</h1>
-
-    </div>
-
-    </div>
-
-    <br>
-
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
-
-    <h2>🔔 Notifications retardataires</h2>
+    </tr>
 
     """
 
-    for m in membres:
+total_membres = payes + non_payes
 
-        if m[2] == 0:
+if total_membres > 0:
 
-            page += f"<p>⚠️ {m[1]} doit encore payer</p>"
+    progression = round((payes / total_membres) * 100,1)
 
-    page += "</div><br>"
+else:
 
-    page += f"""
+    progression = 0
 
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
+page += f"""
 
-    <h2>📜 Historique</h2>
+</table>
 
-    """
+</div>
 
-    for h in historiques:
+<br>
 
-        hid, membre, montant, date = h
+<div style='display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:15px;'>
 
-        page += f"""
+<div style='background:{card};
+padding:20px;
+border-radius:20px;'>
 
-        <p>
+<h3>Total collecté</h3>
 
-        💰 {membre} a payé {montant}$ le {date}
+<h1>{total}$</h1>
 
-        </p>
+</div>
 
-        """
+<div style='background:{card};
+padding:20px;
+border-radius:20px;'>
 
-    page += "</div><br>"
+<h3>Payés</h3>
 
-    beneficiaire_actuel = "iconnu"
-    prochain_beneficiaire = "daniel"
+<h1>{payes}</h1>
 
-    page += f"""
+</div>
 
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
+<div style='background:{card};
+padding:20px;
+border-radius:20px;'>
 
-    <h2>🏆 Bénéficiaire actuel</h2>
+<h3>Non payés</h3>
 
-    <p style='font-size:22px;
-    font-weight:bold;
-    color:lightgreen;'>
+<h1>{non_payes}</h1>
 
-    {beneficiaire_actuel}
+</div>
 
-    </p>
+<div style='background:{card};
+padding:20px;
+border-radius:20px;'>
 
-    <h2>⏭️ Prochain bénéficiaire</h2>
+<h3>Progression</h3>
 
-    <p style='font-size:22px;
-    font-weight:bold;
-    color:orange;'>
+<h1>{progression}%</h1>
 
-    {prochain_beneficiaire}
+</div>
 
-    </p>
+</div>
 
-    </div>
+<br>
+"""
 
-    <br>
+if session.get("role") == "admin":
 
-    <div style='background:{card};
-    padding:20px;
-    border-radius:20px;'>
-
-    <h2>📊 Statistiques avancées</h2>
-
-    <p>👥 Total membres : {total_membres}</p>
-
-    <p>💰 Total collecté : {total}$</p>
-
-    <p>✅ Membres payés : {payes}</p>
-
-    <p>❌ Membres non payés : {non_payes}</p>
-
-    <p>📈 Progression : {progression}%</p>
-
-    </div>
-
-    <br>
+    page += """
 
     <a href='/add'
 
@@ -568,18 +496,6 @@ def dashboard():
     text-decoration:none;'>
 
     ➕ Ajouter membre
-
-    </a>
-
-    <a href='/graph'
-
-    style='background:#2563eb;
-    color:white;
-    padding:10px;
-    border-radius:10px;
-    text-decoration:none;'>
-
-    📊 Graphique
 
     </a>
 
@@ -595,25 +511,41 @@ def dashboard():
 
     </a>
 
-    <a href='/logout'
-
-    style='background:black;
-    color:white;
-    padding:10px;
-    border-radius:10px;
-    text-decoration:none;'>
-
-    Logout
-
-    </a>
-
-    </div>
-
-    </body>
-
     """
 
-    return page
+page += """
+
+<a href='/graph'
+
+style='background:#2563eb;
+color:white;
+padding:10px;
+border-radius:10px;
+text-decoration:none;'>
+
+📊 Graphique
+
+</a>
+
+<a href='/logout'
+
+style='background:black;
+color:white;
+padding:10px;
+border-radius:10px;
+text-decoration:none;'>
+
+Logout
+
+</a>
+
+</div>
+
+</body>
+
+"""
+
+return page
 
 # =====================================
 # AJOUT MEMBRE
@@ -672,7 +604,7 @@ def add():
 
     </body>
 
-    """
+"""
 
 # =====================================
 # PAYER
